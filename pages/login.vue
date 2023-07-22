@@ -1,8 +1,5 @@
 <template>
-
-
-
-  <div class="login">
+  <div class="login sm:w-30rem">
     <h2>Login</h2>
     <form @submit.prevent="submitForm">
       <div>
@@ -15,7 +12,7 @@
         <input id="password" v-model="password" type="password"/>
         <div v-if="errors.password" class="error">{{ errors.password }}</div>
       </div>
-      <div>
+      <div class="flex flex-column ">
         <button type="submit">Login</button>
       </div>
     </form>
@@ -144,12 +141,5 @@ onMounted(async () => {
   margin-top: 5px;
 }
 
-.login form button {
-  padding: 10px 20px;
-  border-radius: 5px;
-  border: none;
-  background-color: #78b087;
-  color: white;
-  cursor: pointer;
-}
+
 </style>

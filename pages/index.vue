@@ -30,17 +30,14 @@
             your linktree for better engagement.</p>
         </div>
       </section>
-      <section id="cta">
-        <h2>Ready to Simplify Your Online Presence?</h2>
-        <p>Join the thousands of influencers, creators, businesses and more using Your Linktree Clone to connect their
-          audience with their most important content.</p>
-        <button>Get Started for Free</button>
-      </section>
+
+
+
     </main>
   </div>
 </template>
 
-<script>
+<script setup>
 
 </script>
 

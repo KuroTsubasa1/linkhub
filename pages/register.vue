@@ -2,7 +2,7 @@
 
 
 
-  <div class="register">
+  <div class="register sm:w-30rem">
     <h2>Register</h2>
     <form @submit.prevent="submitForm">
       <div>
@@ -20,7 +20,7 @@
         <input id="password" v-model="password" type="password" />
         <div v-if="errors.password" class="error">{{ errors.password }}</div>
       </div>
-      <div>
+      <div class="flex flex-column">
         <button type="submit">Register</button>
       </div>
     </form>
@@ -155,12 +155,6 @@ const pb = new PocketBase(import.meta.env.VITE_API_URL );
   margin-top: 5px;
 }
 
-.register form button {
-  padding: 10px 20px;
-  border-radius: 5px;
-  border: none;
-  background-color: #78b087;
-  color: white;
-  cursor: pointer;
-}
+
+
 </style>
