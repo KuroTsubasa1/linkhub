@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { signUp } from '~/lib/auth-client'
+import { isValidUsername } from '~/types/validation'
 
 definePageMeta({ middleware: 'guest' })
 useHead({ title: 'Register • Linkhub' })
@@ -11,14 +12,12 @@ const password = ref('')
 const errorMsg = ref('')
 const isSubmitting = ref(false)
 
-const USERNAME_RE = /^[a-z0-9_-]{2,32}$/i
-
 async function onSubmit() {
   if (!name.value || !username.value || !email.value || !password.value) {
     errorMsg.value = 'All fields are required.'
     return
   }
-  if (!USERNAME_RE.test(username.value)) {
+  if (!isValidUsername(username.value)) {
     errorMsg.value = 'Username must be 2-32 chars, letters/digits/_/- only.'
     return
   }

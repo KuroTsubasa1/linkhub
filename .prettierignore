@@ -1,0 +1,9 @@
+node_modules
+.nuxt
+.output
+.nitro
+.cache
+dist
+public/uploads
+server/db/migrations
+package-lock.json

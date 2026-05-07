@@ -1,9 +1,8 @@
 import { eq } from 'drizzle-orm'
+import { isValidUsername } from '~/types/validation'
 import { requireUser } from '../lib/session'
 import { db } from '../db'
 import { user as userTable } from '../db/schema'
-
-const USERNAME_RE = /^[a-z0-9_-]{2,32}$/i
 
 export default defineEventHandler(async (event) => {
   const me = await requireUser(event)
@@ -16,7 +15,7 @@ export default defineEventHandler(async (event) => {
 
   const updates: Record<string, unknown> = {}
   if (typeof body.username === 'string') {
-    if (!USERNAME_RE.test(body.username)) {
+    if (!isValidUsername(body.username)) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Username must be 2-32 chars, letters/digits/_/- only',
