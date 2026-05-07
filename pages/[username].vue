@@ -9,6 +9,10 @@ const { data: profile, error } = await useFetch<PublicProfile>(
   { key: `user-${username.value}` },
 )
 
+if (error.value?.statusCode === 404) {
+  throw createError({ statusCode: 404, statusMessage: 'User not found', fatal: true })
+}
+
 useHead({
   title: () => (profile.value ? `@${profile.value.username} • Linkhub` : 'Linkhub'),
 })
