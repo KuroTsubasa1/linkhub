@@ -1,260 +1,358 @@
-<template>
+<script setup lang="ts">
+import { useConfirm } from 'primevue/useconfirm'
+import { useToast } from 'primevue/usetoast'
+import type { MyLink, MyProfile } from '~/types/models'
 
+definePageMeta({ middleware: 'auth' })
+useHead({ title: 'Dashboard • Linkhub' })
 
+const linksStore = useLinksStore()
+const { uploadFile } = useUploads()
+const confirm = useConfirm()
+const toast = useToast()
 
-<div class="dashboard">
-<h2>Dashboard</h2>
+// ---------- Profile ----------
+const profile = ref<MyProfile | null>(null)
+const bioInput = ref('')
+const savingProfile = ref(false)
+const profileError = ref('')
 
-<div class="forms-container">
-  <!-- Profile form -->
-  <form class="form-container" @submit.prevent="updateProfile">
-    <h3>Profile</h3>
-    <div class="profile-picture">
-      <label for="profile-picture" class="custom-file-upload">
-        Upload Profile Picture
-      </label>
-      <input id="profile-picture" type="file" @change="onProfilePictureChange">
-    </div>
-    <div class="bio">
-      <label for="bio">Bio:</label>
-      <textarea id="bio" v-model="bio"></textarea>
-    </div>
-    <button type="submit">Update Profile</button>
-  </form>
+async function loadProfile() {
+  profile.value = await $fetch<MyProfile>('/api/profile')
+  bioInput.value = profile.value.bio ?? ''
+}
 
-  <!-- Link form -->
-  <form class="form-container" @submit.prevent="submitForm">
-    <h3>Add a New Link</h3>
-    <div>
-      <label for="title">Title:</label>
-      <input id="title" v-model="title" type="text" />
-    </div>
-    <div>
-      <label for="url">URL:</label>
-      <input id="url" v-model="url" type="url" />
-    </div>
-    <div class="file-upload">
-      <label for="link-image" class="custom-file-upload">
-        Upload Image for Link
-      </label>
-      <input id="link-image" type="file" @change="onLinkImageChange" />
-    </div>
-    <button type="submit">Add Link</button>
-  </form>
-</div>
+async function saveProfile() {
+  savingProfile.value = true
+  profileError.value = ''
+  try {
+    profile.value = await $fetch<MyProfile>('/api/profile', {
+      method: 'PATCH',
+      body: { bio: bioInput.value || null },
+    })
+    toast.add({ severity: 'success', summary: 'Profile saved', life: 2000 })
+  } catch (err: unknown) {
+    profileError.value = readError(err, 'Save failed')
+  } finally {
+    savingProfile.value = false
+  }
+}
 
-<!-- Link list -->
-  <div class="link-list">
-    <div class="link-card" v-for="(link, index) in links" :key="index">
-      <img :src="link.image" alt="Link Image" class="link-image">
-      <h4>{{ link.title }}</h4>
-      <a :href="link.url">{{ link.url }}</a>
-      <div class="link-actions">
-        <button @click="editLink(index)">Edit</button>
-        <button @click="updateLink(index)">Update</button>
-        <button @click="deleteLink(index)">Delete</button>
-      </div>
-    </div>
-</div>
-</div>
-</template>
+async function onAvatarUpload(event: { files: File | File[] }) {
+  const file = Array.isArray(event.files) ? event.files[0] : event.files
+  if (!file) return
+  try {
+    const url = await uploadFile(file)
+    profile.value = await $fetch<MyProfile>('/api/profile', {
+      method: 'PATCH',
+      body: { avatarUrl: url },
+    })
+    toast.add({ severity: 'success', summary: 'Avatar updated', life: 2000 })
+  } catch (err: unknown) {
+    toast.add({
+      severity: 'error',
+      summary: 'Upload failed',
+      detail: readError(err, ''),
+      life: 3000,
+    })
+  }
+}
 
-<script setup>
-import { ref } from 'vue';
-import PocketBase from 'pocketbase';
+// ---------- New link ----------
+const newLink = reactive({
+  title: '',
+  url: '',
+  imageUrl: null as string | null,
+})
+const addingLink = ref(false)
+const addError = ref('')
 
-const pb = new PocketBase(import.meta.env.VITE_API_URL);
+async function onLinkImageUpload(event: { files: File | File[] }) {
+  const file = Array.isArray(event.files) ? event.files[0] : event.files
+  if (!file) return
+  try {
+    newLink.imageUrl = await uploadFile(file)
+    toast.add({ severity: 'success', summary: 'Image uploaded', life: 2000 })
+  } catch (err: unknown) {
+    toast.add({
+      severity: 'error',
+      summary: 'Upload failed',
+      detail: readError(err, ''),
+      life: 3000,
+    })
+  }
+}
 
-    const bio = ref('');
-    const title = ref('');
-    const url = ref('');
-    const profilePicture = ref(null);
-    const linkImage = ref(null);
-    const links = ref([
-      { title: 'Link 1', url: 'https://example.com', image: 'https://pbs.twimg.com/profile_images/1498641868397191170/6qW2XkuI_400x400.png' },
-      { title: 'Link 2', url: 'https://example.org', image: 'https://pbs.twimg.com/profile_images/1498641868397191170/6qW2XkuI_400x400.png' },
-      { title: 'Link 3', url: 'https://example.org', image: 'https://pbs.twimg.com/profile_images/1498641868397191170/6qW2XkuI_400x400.png' },
-      { title: 'Link 4', url: 'https://example.org', image: 'https://pbs.twimg.com/profile_images/1498641868397191170/6qW2XkuI_400x400.png' },
-      { title: 'Link 5', url: 'https://example.org', image: 'https://pbs.twimg.com/profile_images/1498641868397191170/6qW2XkuI_400x400.png' },
-      { title: 'Link 6', url: 'https://example.org', image: 'https://pbs.twimg.com/profile_images/1498641868397191170/6qW2XkuI_400x400.png' },
-      { title: 'Link 7', url: 'https://example.org', image: 'https://pbs.twimg.com/profile_images/1498641868397191170/6qW2XkuI_400x400.png' },
-    ]);
+async function addLink() {
+  if (!newLink.title || !newLink.url) {
+    addError.value = 'Title and URL are required.'
+    return
+  }
+  addError.value = ''
+  addingLink.value = true
+  try {
+    await linksStore.create({
+      title: newLink.title,
+      url: newLink.url,
+      imageUrl: newLink.imageUrl,
+    })
+    newLink.title = ''
+    newLink.url = ''
+    newLink.imageUrl = null
+    toast.add({ severity: 'success', summary: 'Link added', life: 2000 })
+  } catch (err: unknown) {
+    addError.value = readError(err, 'Add failed')
+  } finally {
+    addingLink.value = false
+  }
+}
 
-    const submitForm = () => {
-      const newLink = {
-        title: title.value,
-        url: url.value,
-        image: null, // Placeholder for the uploaded image URL
-      };
+// ---------- Edit link ----------
+const editVisible = ref(false)
+const editDraft = reactive({
+  id: '',
+  title: '',
+  url: '',
+})
+const savingEdit = ref(false)
 
-      // Create a new FormData object
-      const formData = new FormData();
+function startEdit(l: MyLink) {
+  editDraft.id = l.id
+  editDraft.title = l.title
+  editDraft.url = l.url
+  editVisible.value = true
+}
 
-      // Append the title and URL to the form data
-      formData.append('title', newLink.title);
-      formData.append('url', newLink.url);
+async function saveEdit() {
+  savingEdit.value = true
+  try {
+    await linksStore.update(editDraft.id, {
+      title: editDraft.title,
+      url: editDraft.url,
+    })
+    editVisible.value = false
+    toast.add({ severity: 'success', summary: 'Link updated', life: 2000 })
+  } catch (err: unknown) {
+    toast.add({
+      severity: 'error',
+      summary: 'Update failed',
+      detail: readError(err, ''),
+      life: 3000,
+    })
+  } finally {
+    savingEdit.value = false
+  }
+}
 
-      // Append the image file to the form data
-      if (linkImage.value) {
-        formData.append('image', linkImage.value);
+// ---------- Delete link ----------
+function confirmDelete(l: MyLink) {
+  confirm.require({
+    message: `Delete "${l.title}"? This can't be undone.`,
+    header: 'Confirm delete',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: { label: 'Cancel', severity: 'secondary', text: true },
+    acceptProps: { label: 'Delete', severity: 'danger' },
+    accept: async () => {
+      try {
+        await linksStore.remove(l.id)
+        toast.add({ severity: 'success', summary: 'Link deleted', life: 2000 })
+      } catch (err: unknown) {
+        toast.add({
+          severity: 'error',
+          summary: 'Delete failed',
+          detail: readError(err, ''),
+          life: 3000,
+        })
       }
+    },
+  })
+}
 
-      // Perform the image upload request to your server
-      // You can use fetch or any other HTTP library of your choice
-      fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-          .then((response) => response.json())
-          .then((data) => {
-            // Assuming the server returns the uploaded image URL
-            newLink.image = data.imageUrl;
+function readError(err: unknown, fallback: string) {
+  if (typeof err === 'object' && err !== null) {
+    const m = err as { message?: string; statusMessage?: string }
+    return m.statusMessage ?? m.message ?? fallback
+  }
+  return fallback
+}
 
-            // Add the new link to the links array
-            links.value.push(newLink);
-
-            // Reset form fields
-            title.value = '';
-            url.value = '';
-            linkImage.value = null;
-          })
-          .catch((error) => {
-            console.error('Error uploading image:', error);
-          });
-    };
-
-
-
-    const onProfilePictureChange = (e) => {
-      const file = e.target.files[0];
-      profilePicture.value = URL.createObjectURL(file);
-      // send profilePicture.value to your server
-    };
-
-    const updateProfile = () => {
-      // add your logic to update the profile
-    }
-
-    const editLink = (index) => {
-      // Copy the link to edit into your form variables
-      title.value = links.value[index].title;
-      url.value = links.value[index].url;
-      // linkImage.value = ...; // If you have the ability to edit the image, add it here
-    };
-
-    const updateLink = (index) => {
-      // Update the link in the array
-      links.value[index].title = title.value;
-      links.value[index].url = url.value;
-      // links.value[index].image = linkImage.value; // If you can edit the image, add it here
-    };
-
-    const deleteLink = (index) => {
-      // Remove the link from the array
-      links.value.splice(index, 1);
-    };
-
+// ---------- Init ----------
+// Run on the client only — we use $fetch in store actions, which doesn't
+// forward cookies during SSR. The dashboard is interactive anyway, so
+// fetching after mount is fine.
+onMounted(async () => {
+  await Promise.all([loadProfile(), linksStore.fetch()])
+})
 </script>
 
-<style scoped>
+<template>
+  <section class="max-w-4xl mx-auto p-4 sm:p-6">
+    <div class="flex items-baseline justify-between mb-6 gap-3 flex-wrap">
+      <h1 class="text-3xl">Dashboard</h1>
+      <NuxtLink
+        v-if="profile"
+        :to="`/${profile.username}`"
+        class="text-sm !text-[var(--linkhub-primary)]"
+        target="_blank"
+      >
+        View public page →
+      </NuxtLink>
+    </div>
 
-.forms-container {
-  display: flex;
-  gap: 20px;
-  margin-top: 20px; /* Add space above the forms */
-}
+    <div class="grid md:grid-cols-2 gap-4 mb-8">
+      <!-- Profile card -->
+      <Card>
+        <template #title>Profile</template>
+        <template #content>
+          <form class="flex flex-col gap-4" @submit.prevent="saveProfile">
+            <div class="flex items-center gap-4">
+              <Avatar
+                :image="profile?.avatarUrl ?? undefined"
+                :label="profile?.username?.[0]?.toUpperCase()"
+                size="xlarge"
+                shape="circle"
+              />
+              <FileUpload
+                mode="basic"
+                :auto="true"
+                custom-upload
+                accept="image/*"
+                :max-file-size="5_000_000"
+                choose-label="Upload avatar"
+                choose-icon="pi pi-upload"
+                @uploader="onAvatarUpload"
+              />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label for="bio" class="text-sm">Bio</label>
+              <Textarea id="bio" v-model="bioInput" rows="4" auto-resize />
+            </div>
+            <Button label="Save profile" type="submit" :loading="savingProfile" />
+            <Message v-if="profileError" severity="error" :closable="false">
+              {{ profileError }}
+            </Message>
+          </form>
+        </template>
+      </Card>
 
-.form-container {
-  flex: 1;
-}
+      <!-- Add link card -->
+      <Card>
+        <template #title>Add a link</template>
+        <template #content>
+          <form class="flex flex-col gap-4" @submit.prevent="addLink">
+            <div class="flex flex-col gap-1">
+              <label for="link-title" class="text-sm">Title</label>
+              <InputText id="link-title" v-model="newLink.title" required />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label for="link-url" class="text-sm">URL</label>
+              <InputText id="link-url" v-model="newLink.url" type="url" required />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-sm">Image (optional)</label>
+              <FileUpload
+                mode="basic"
+                :auto="true"
+                custom-upload
+                accept="image/*"
+                :max-file-size="5_000_000"
+                choose-label="Upload image"
+                choose-icon="pi pi-upload"
+                @uploader="onLinkImageUpload"
+              />
+              <small v-if="newLink.imageUrl" class="opacity-70">Image attached ✓</small>
+            </div>
+            <Button label="Add link" type="submit" :loading="addingLink" />
+            <Message v-if="addError" severity="error" :closable="false">
+              {{ addError }}
+            </Message>
+          </form>
+        </template>
+      </Card>
+    </div>
 
+    <!-- Links list -->
+    <Card>
+      <template #title>
+        <div class="flex items-center justify-between">
+          <span>Your links</span>
+          <span class="text-sm opacity-70">{{ linksStore.items.length }} total</span>
+        </div>
+      </template>
+      <template #content>
+        <div v-if="linksStore.isLoading" class="text-center py-6 opacity-70">Loading…</div>
+        <div
+          v-else-if="linksStore.items.length === 0"
+          class="text-center py-6 opacity-70"
+        >
+          No links yet. Use the form above to add one.
+        </div>
+        <ul v-else class="flex flex-col gap-3">
+          <li
+            v-for="l in linksStore.items"
+            :key="l.id"
+            class="flex items-center gap-3 p-3 rounded border border-white/10"
+          >
+            <Avatar
+              :image="l.imageUrl ?? undefined"
+              :label="l.title[0]?.toUpperCase()"
+              shape="circle"
+            />
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold truncate">{{ l.title }}</div>
+              <a
+                :href="l.url"
+                target="_blank"
+                class="text-sm !text-[var(--linkhub-primary)] truncate block"
+              >
+                {{ l.url }}
+              </a>
+            </div>
+            <Button
+              icon="pi pi-pencil"
+              text
+              severity="secondary"
+              aria-label="Edit"
+              @click="startEdit(l)"
+            />
+            <Button
+              icon="pi pi-trash"
+              text
+              severity="danger"
+              aria-label="Delete"
+              @click="confirmDelete(l)"
+            />
+          </li>
+        </ul>
+      </template>
+    </Card>
 
-.dashboard {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center; /* Center the content horizontally */
-}
-
-.dashboard form div,
-.dashboard .profile-picture,
-.dashboard .bio {
-  margin-bottom: 15px;
-}
-
-.dashboard form label,
-.dashboard .profile-picture label,
-.dashboard .bio label {
-  display: block;
-  margin-bottom: 5px;
-}
-
-.dashboard form input,
-.dashboard .profile-picture input,
-.dashboard .bio textarea {
-  width: 100%;
-  padding: 10px;
-  border-radius: 5px;
-  border: 2px solid #78b087;
-}
-
-.dashboard form button {
-  margin-top: 20px;
-  padding: 10px 20px;
-  border-radius: 5px;
-  border: none;
-  background-color: #78b087;
-  color: white;
-  cursor: pointer;
-}
-
-.link-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center; /* Center the link list horizontally */
-  margin-top: 20px; /* Add space above the link list */
-}
-
-.link-card {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  border: 1px solid #78b087;
-  border-radius: 10px;
-  padding: 10px;
-  color: #fafafa;
-  box-sizing: border-box;
-  margin-bottom: 15px;
-}
-
-.link-card img {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 50%;
-}
-
-.link-card div {
-  flex-grow: 1;
-}
-
-.link-actions {
-  display: flex;
-  justify-content: space-around;
-  margin-top: 10px;
-}
-
-.link-actions button {
-  background: #a8c79e;
-  border: none;
-  border-radius: 5px;
-  padding: 5px 10px;
-  color: #050505;
-  cursor: pointer;
-  margin: 10px;
-}
-
-</style>
-
+    <Dialog
+      v-model:visible="editVisible"
+      header="Edit link"
+      modal
+      class="w-full max-w-md mx-4"
+    >
+      <form class="flex flex-col gap-4 pt-2" @submit.prevent="saveEdit">
+        <div class="flex flex-col gap-1">
+          <label for="edit-title" class="text-sm">Title</label>
+          <InputText id="edit-title" v-model="editDraft.title" required />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label for="edit-url" class="text-sm">URL</label>
+          <InputText id="edit-url" v-model="editDraft.url" type="url" required />
+        </div>
+        <div class="flex justify-end gap-2 mt-2">
+          <Button
+            label="Cancel"
+            text
+            severity="secondary"
+            type="button"
+            @click="editVisible = false"
+          />
+          <Button label="Save" type="submit" :loading="savingEdit" />
+        </div>
+      </form>
+    </Dialog>
+  </section>
+</template>

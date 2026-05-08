@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@plugin "tailwindcss-primeui";
+
+@theme {
+  --font-sans: 'Lato', sans-serif;
+  --font-display: 'Open Sans', sans-serif;
+}
+
+:root {
+  --linkhub-bg: #050505;
+  --linkhub-surface: #13201d;
+  --linkhub-primary: #78b087;
+  --linkhub-primary-hover: #a8c79e;
+  --linkhub-text: #fafafa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--linkhub-text);
+  background-color: var(--linkhub-bg);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
+
+a {
+  color: var(--linkhub-primary);
+  text-decoration: none;
+}

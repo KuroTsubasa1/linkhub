@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: linkhub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: linkhub
+      POSTGRES_PASSWORD: linkhub
+      POSTGRES_DB: linkhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - linkhub-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U linkhub -d linkhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  linkhub-postgres-data:

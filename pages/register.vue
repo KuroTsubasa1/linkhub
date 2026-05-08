@@ -1,160 +1,99 @@
-<template>
+<script setup lang="ts">
+import { signUp } from '~/lib/auth-client'
+import { isValidUsername } from '~/types/validation'
 
+definePageMeta({ middleware: 'guest' })
+useHead({ title: 'Register • Linkhub' })
 
+const name = ref('')
+const username = ref('')
+const email = ref('')
+const password = ref('')
+const errorMsg = ref('')
+const isSubmitting = ref(false)
 
-  <div class="register sm:w-30rem">
-    <h2>Register</h2>
-    <form @submit.prevent="submitForm">
-      <div>
-        <label for="username">Username:</label>
-        <input id="username" v-model="username" type="text" />
-        <div v-if="errors.usernames" class="error">{{ errors.username }}</div>
-      </div>
-      <div>
-        <label for="email">Email:</label>
-        <input id="email" v-model="email" type="text" />
-        <div v-if="errors.email" class="error">{{ errors.email }}</div>
-      </div>
-      <div>
-        <label for="password">Password:</label>
-        <input id="password" v-model="password" type="password" />
-        <div v-if="errors.password" class="error">{{ errors.password }}</div>
-      </div>
-      <div class="flex flex-column">
-        <button type="submit">Register</button>
-      </div>
-    </form>
-  </div>
-</template>
+async function onSubmit() {
+  if (!name.value || !username.value || !email.value || !password.value) {
+    errorMsg.value = 'All fields are required.'
+    return
+  }
+  if (!isValidUsername(username.value)) {
+    errorMsg.value = 'Username must be 2-32 chars, letters/digits/_/- only.'
+    return
+  }
+  errorMsg.value = ''
+  isSubmitting.value = true
+  try {
+    const result = await signUp.email({
+      name: name.value,
+      email: email.value,
+      password: password.value,
+      // additionalFields are accepted but not in the base TS signature
+      username: username.value,
+    } as Parameters<typeof signUp.email>[0])
+    if (result.error) {
+      errorMsg.value = result.error.message ?? 'Registration failed.'
+      return
+    }
+    await navigateTo('/dashboard')
+  } catch (err: unknown) {
+    errorMsg.value = readError(err, 'Registration failed.')
+  } finally {
+    isSubmitting.value = false
+  }
+}
 
-<script setup>
-import { ref, reactive } from 'vue';
-import PocketBase from 'pocketbase'
-
-const pb = new PocketBase(import.meta.env.VITE_API_URL );
-
-    const username = ref('');
-    const email = ref('');
-    const password = ref('');
-    const errors = reactive({
-      username: '',
-      email: '',
-      password: '',
-    });
-
-    const submitForm = () => {
-      // Reset previous errors
-      errors.username = '';
-      errors.email = '';
-      errors.password = '';
-
-      // Validate the form
-      if (!username.value) {
-        errors.username = 'Username is required.';
-      }
-
-      if (!email.value) {
-        errors.email = 'Email is required.';
-      }
-
-      if (!password.value) {
-        errors.password = 'Password is required.';
-      }
-
-      if (Object.values(errors).some(error => error !== '')) {
-        return; // Don't submit if there are errors
-      }
-
-      // Submit register form
-      fetch(import.meta.env.VITE_API_URL + '/api/collections/users/records', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: username.value,
-          email: email.value,
-          password: password.value,
-          passwordConfirm: password.value,
-        }),
-      })
-        .then(response => response.json())
-        .then(async data => {
-          if (data.code === 400) {
-            // Set errors
-            console.log(data);
-
-            ['username', 'email', 'password'].forEach(field => {
-              if (data.data[field]) {
-                errors[field] = data.data[field].message;
-              }
-            });
-          } else {
-
-            // Login user
-            const authData = await pb.collection('users').authWithPassword(
-                username.value,
-                password.value,
-            );
-
-            // validate login
-            if(pb.authStore.isValid)
-            {
-              pb.authStore.exportToCookie({ httpOnly: false });
-              // Redirect to dashboard
-              window.location = '/dashboard';
-            }
-            else
-            {
-              // TODO: show error
-              // reload page
-             // window.location.reload();
-            }
-          }
-        });
-    };
-
-    onMounted(async () => {
-     // loadFromCookie(cookieHeader, key = 'pb_auth')
-      console.log('loading from cookie')
-      pb.authStore.loadFromCookie('pocketbase_auth')
-      console.log(pb.authStore.isValid)
-
-      // redirect to dashboard if logged in
-      if (pb.authStore.isValid) {
-        window.location = '/dashboard';
-      }
-    })
+function readError(err: unknown, fallback: string) {
+  if (typeof err === 'object' && err !== null) {
+    const m = err as { message?: string; statusMessage?: string }
+    return m.statusMessage ?? m.message ?? fallback
+  }
+  return fallback
+}
 </script>
 
-<style scoped>
-.register {
-  max-width: 400px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.register form div {
-  margin-bottom: 15px;
-}
-
-.register form label {
-  display: block;
-  margin-bottom: 5px;
-}
-
-.register form input {
-  width: 100%;
-  padding: 10px;
-  border-radius: 5px;
-  border: 2px solid #78b087;
-}
-
-.register form .error {
-  color: red;
-  margin-top: 5px;
-}
-
-
-
-</style>
+<template>
+  <section class="max-w-md mx-auto p-4 sm:p-6 mt-8 sm:mt-12">
+    <Card>
+      <template #title>Create account</template>
+      <template #content>
+        <form class="flex flex-col gap-4" @submit.prevent="onSubmit">
+          <div class="flex flex-col gap-1">
+            <label for="name" class="text-sm">Display name</label>
+            <InputText id="name" v-model="name" required autocomplete="name" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="username" class="text-sm">Username</label>
+            <InputText id="username" v-model="username" required />
+            <small class="opacity-70">
+              Your public profile lives at /your-username. 2-32 chars, letters/digits/_/-.
+            </small>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="email" class="text-sm">Email</label>
+            <InputText id="email" v-model="email" type="email" required autocomplete="email" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="password" class="text-sm">Password</label>
+            <Password
+              id="password"
+              v-model="password"
+              toggle-mask
+              fluid
+              required
+              autocomplete="new-password"
+            />
+          </div>
+          <Message v-if="errorMsg" severity="error" :closable="false">{{ errorMsg }}</Message>
+          <Button label="Create account" type="submit" :loading="isSubmitting" />
+        </form>
+      </template>
+      <template #footer>
+        <p class="text-sm text-center">
+          Already have an account?
+          <NuxtLink to="/login" class="!text-[var(--linkhub-primary)]">Login</NuxtLink>
+        </p>
+      </template>
+    </Card>
+  </section>
+</template>

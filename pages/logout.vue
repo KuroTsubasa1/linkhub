@@ -1,24 +1,16 @@
 <script setup lang="ts">
-import PocketBase from 'pocketbase'
-import {default as session_helper} from '../utils/session_helper'
+import { signOut } from '~/lib/auth-client'
 
-const pb = new PocketBase(import.meta.env.VITE_API_URL);
-const router = useRouter();
+useHead({ title: 'Signing out…' })
 
-onMounted(() => {
-  pb.authStore.clear();
-  session_helper.destroyCookie(import.meta.env.VITE_AUTH_COOKIE)
-
-  // redirect to login
-  router.push({path: '/login'});
-
+onMounted(async () => {
+  await signOut()
+  await navigateTo('/')
 })
 </script>
 
 <template>
-
+  <section class="flex items-center justify-center min-h-[40vh]">
+    <p class="opacity-70">Signing out…</p>
+  </section>
 </template>
-
-<style scoped>
-
-</style>
