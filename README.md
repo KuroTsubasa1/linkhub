@@ -1,12 +1,77 @@
 # Linkhub
 
-A small "Linktree"-style app: signed-in users curate a public profile page that lists links to
-their content. Built on Nuxt 3 with TypeScript end-to-end, PrimeVue 4 components, Tailwind 4 for
-utilities, Drizzle ORM over Postgres, and better-auth for sessions.
+> Your single shareable profile URL — sign up, paste your links, share once.
 
-See [`docs/architecture.md`](docs/architecture.md) for the system overview, [`docs/auth-flow.md`](docs/auth-flow.md)
-for sign-up / sign-in sequence diagrams, [`docs/data-model.md`](docs/data-model.md) for the
-schema, and [`docs/dev-setup.md`](docs/dev-setup.md) for first-run instructions.
+![Linkhub landing page](docs/images/landing.png)
+
+A small "Linktree"-style app: signed-in users curate a public profile page that lists links to
+their content. Built on Nuxt 3 with TypeScript end-to-end, PrimeVue 4 components, Tailwind 4,
+Drizzle ORM over Postgres, and better-auth for sessions.
+
+---
+
+## Features
+
+- **One profile, many links.** Add unlimited links — titles, URLs, optional per-link images.
+- **A page that's yours.** Pick a username at sign-up; your public profile lives at
+  `/your-username`. Update your avatar and bio from the dashboard.
+- **Edit anything anytime.** Click ✎ to rename or rewire a link, click 🗑 (with a confirm
+  dialog) to remove it. Changes appear on your public page immediately.
+- **Real auth.** Email + password sessions backed by httpOnly cookies. Protected routes redirect
+  to `/login?redirect=...`; signed-in visitors to `/login` are bounced back to `/dashboard`.
+- **SEO-friendly public pages.** `/your-username` is server-rendered, returning a proper 404 for
+  unknown slugs.
+- **Self-hostable.** Postgres in Docker, the Nuxt app does the rest. No external services
+  required for development.
+
+## How it looks
+
+### Dashboard
+Edit your profile and curate links from one screen.
+
+![Dashboard](docs/images/dashboard.png)
+
+### Public profile
+What visitors see at `/your-username`.
+
+![Public profile](docs/images/public-profile.png)
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Client[Browser - Nuxt SPA] -->|"$fetch / useFetch"| API
+  Client -->|"signIn / signUp / signOut / useSession"| AuthClient[auth-client]
+  AuthClient -->|HTTP| AuthRoute["/api/auth/*"]
+  subgraph Server[Nitro server]
+    AuthRoute --> Auth[server/lib/auth.ts]
+    API["/api/links<br/>/api/profile<br/>/api/uploads<br/>/api/users/:username"] --> Auth
+    Auth --> DB[server/db/index.ts]
+    API --> DB
+  end
+  DB --> PG[(Postgres)]
+```
+
+For the deeper version see [`docs/architecture.md`](docs/architecture.md). Auth flow lives in
+[`docs/auth-flow.md`](docs/auth-flow.md), schema in [`docs/data-model.md`](docs/data-model.md),
+and full first-run instructions in [`docs/dev-setup.md`](docs/dev-setup.md).
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Framework | Nuxt 3 (latest 3.x patch) |
+| Language | TypeScript |
+| State | Pinia (`useLinksStore`) |
+| UI | PrimeVue 4 + Aura preset |
+| Utility CSS | Tailwind 4 + `tailwindcss-primeui` |
+| Icons | PrimeIcons |
+| Backend | Nitro server routes |
+| ORM | Drizzle (`drizzle-orm/node-postgres`) |
+| Database | Postgres 16 (Docker locally) |
+| Auth | better-auth (email + password) + drizzle adapter |
+| Tests | Vitest + happy-dom |
+| Tooling | ESLint flat config, Prettier |
 
 ## First-time setup
 
@@ -84,20 +149,3 @@ linkhub/
 ├─ vitest.config.ts
 └─ .env.example
 ```
-
-## Stack
-
-| Layer | Tech |
-|---|---|
-| Framework | Nuxt 3 (latest 3.x patch) |
-| Language | TypeScript |
-| State | Pinia (`useLinksStore`) |
-| UI | PrimeVue 4 + Aura preset |
-| Utility CSS | Tailwind 4 + `tailwindcss-primeui` |
-| Icons | PrimeIcons |
-| Backend | Nitro server routes |
-| ORM | Drizzle (`drizzle-orm/node-postgres`) |
-| Database | Postgres 16 (Docker locally) |
-| Auth | better-auth (email + password) + drizzle adapter |
-| Tests | Vitest + happy-dom |
-| Tooling | ESLint flat config, Prettier |
